@@ -1,0 +1,61 @@
+name: Build TWRP 3.6 for Grace 5588
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # Запуск в изолированном контейнере со старым окружением Ubuntu 20.04
+    container:
+      image: ubuntu:20.04
+      options: --privileged
+
+    steps:
+    - name: Clean disk space & Setup base dependencies
+      run: |
+        apt-get update
+        apt-get install -y git sudo curl ca-certificates
+
+    - name: Checkout Device Tree
+      uses: actions/checkout@v4
+      with:
+        path: twrp/device/prestigio/grace5588
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc build-essential ccache flex g++-multilib gcc-multilib gnupg gperf lib32ncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev python2 python3
+
+    - name: Symlink Python 2
+      run: |
+        sudo ln -sf /usr/bin/python2 /usr/bin/python
+
+    - name: Install Repo Tool
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        echo "$HOME/bin" >> $GITHUB_PATH
+
+    - name: Init & Sync Minimal TWRP Manifest
+      run: |
+        export PATH="$HOME/bin:$PATH"
+        cd twrp
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-8.1
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+    - name: Build Recovery Image
+      run: |
+        cd twrp
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch omni_grace5588-eng
+        mka recoveryimage -j$(nproc --all)
+
+    - name: Upload TWRP Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TWRP-3.6-Grace5588
+        path: twrp/out/target/product/grace5588/recovery.img
