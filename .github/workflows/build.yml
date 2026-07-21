@@ -48,7 +48,7 @@ jobs:
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-8.1
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-        - name: Build Recovery Image
+    - name: Build Recovery Image
       shell: bash
       run: |
         cd twrp
